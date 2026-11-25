@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Family Tree Data – FTM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1f2a44; --muted:#6b7590; --line:#1f2a44; --paper:#ffffff; --bg:#f6f8fc;
+  --blood:#2f80ed; --blood-soft:#e6f0ff;
+  --spouse:#e8590c; --spouse-soft:#fff0e6;
+  --ok:#2b9348; --ok-soft:#e7f6ec; --warn:#e0a100; --warn-soft:#fff7db; --bad:#d63a3a; --bad-soft:#fde8e8;
+  --radius:16px; --shadow:4px 4px 0 var(--line);
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Nunito,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--ink);background:var(--bg);
+  background-image:radial-gradient(#dfe5f1 1.2px,transparent 1.2px);background-size:22px 22px}
+h1,h2,h3,.btn,.tab{font-family:Fredoka,Nunito,system-ui,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 60px}
+
+/* header */
+header{display:flex;align-items:center;gap:16px;background:var(--paper);border:2.5px solid var(--line);border-radius:22px;
+  box-shadow:var(--shadow);padding:14px 20px;margin-bottom:18px}
+header svg{flex:0 0 auto}
+header h1{margin:0;font-size:1.55rem;letter-spacing:.2px}
+header p{margin:2px 0 0;color:var(--muted);font-size:.92rem}
+.head-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+
+/* cards & buttons */
+.card{background:var(--paper);border:2.5px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
+.btn{cursor:pointer;border:2.5px solid var(--line);background:#fff;color:var(--ink);border-radius:12px;padding:8px 14px;
+  font-weight:600;font-size:.95rem;box-shadow:3px 3px 0 var(--line);transition:transform .08s,box-shadow .08s;white-space:nowrap}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--line)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--line)}
+.btn.primary{background:var(--blood);color:#fff}
+.btn.orange{background:var(--spouse);color:#fff}
+.btn.green{background:var(--ok);color:#fff}
+.btn.danger{background:var(--bad);color:#fff}
+.btn.sm{padding:4px 9px;font-size:.82rem;border-width:2px;box-shadow:2px 2px 0 var(--line);border-radius:9px}
+
+/* tabs */
+.tabs{display:flex;gap:10px;margin-bottom:-2.5px;position:relative;z-index:2;flex-wrap:wrap}
+.tab{cursor:pointer;border:2.5px solid var(--line);border-bottom:none;background:#eef2f9;border-radius:14px 14px 0 0;
+  padding:9px 18px;font-weight:600;color:var(--muted)}
+.tab.active{background:var(--paper);color:var(--ink)}
+.tab .count{display:inline-block;min-width:22px;padding:0 6px;margin-left:6px;border-radius:10px;background:var(--ink);color:#fff;font-size:.78rem;text-align:center}
+.panel{border-top-left-radius:0}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:18px}
+.stat{background:var(--paper);border:2.5px solid var(--line);border-radius:14px;box-shadow:3px 3px 0 var(--line);padding:10px 14px}
+.stat b{display:block;font-family:Fredoka,sans-serif;font-size:1.6rem}
+.stat span{color:var(--muted);font-size:.85rem}
+.stat.blood b{color:var(--blood)} .stat.spouse b{color:var(--spouse)}
+
+/* toolbar */
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.toolbar input[type=search]{flex:1;min-width:180px}
+.legend{display:flex;gap:14px;font-size:.85rem;color:var(--muted);align-items:center}
+.dot{display:inline-block;width:12px;height:12px;border-radius:50%;border:2px solid var(--line);margin-right:5px;vertical-align:-1px}
+
+/* forms */
+input,select,textarea{font:inherit;color:var(--ink);background:#fff;border:2px solid #c9d2e3;border-radius:10px;padding:8px 10px;width:100%}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blood);box-shadow:0 0 0 3px var(--blood-soft)}
+label{display:block;font-weight:700;font-size:.82rem;margin-bottom:4px}
+label small{font-weight:600;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px 14px}
+.full{grid-column:1/-1}
+.hint{font-size:.78rem;color:var(--muted);margin-top:3px}
+
+/* table */
+.table-wrap{overflow:auto;border:2px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;font-size:.88rem;background:#fff}
+th{position:sticky;top:0;background:#f1f4fa;text-align:left;font-family:Fredoka,sans-serif;font-weight:600;padding:9px 10px;
+  border-bottom:2px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none}
+td{padding:8px 10px;border-bottom:1px solid #e6eaf2;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+tr.blood td:first-child{box-shadow:inset 5px 0 0 var(--blood)}
+tr.spouse td:first-child{box-shadow:inset 5px 0 0 var(--spouse)}
+tr.spouse{background:#fffaf6}
+.fid{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:700;padding:2px 7px;border-radius:7px;border:1.5px solid}
+.fid.F{color:var(--blood);background:var(--blood-soft);border-color:var(--blood)}
+.fid.S{color:var(--spouse);background:var(--spouse-soft);border-color:var(--spouse)}
+.fid.M{color:#7048e8;background:#f0ebff;border-color:#7048e8}
+.pill{font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:20px;border:1.5px solid var(--line)}
+.pill.living{background:var(--ok-soft)} .pill.deceased{background:#eceff5} .pill.unknown{background:var(--warn-soft)}
+.pill.ongoing{background:var(--ok-soft)} .pill.divorced{background:var(--bad-soft)} .pill.widowed{background:#eceff5}
+.pill.conc{background:#f0ebff}
+.actions{display:flex;gap:6px}
+.empty{text-align:center;padding:34px 10px;color:var(--muted)}
+.empty svg{display:block;margin:0 auto 10px}
+
+/* checks */
+.checks{margin-top:18px}
+.checks h3{margin:0 0 10px;font-size:1.1rem}
+.check{border:2px solid var(--line);border-radius:10px;padding:7px 12px;margin-bottom:7px;font-size:.88rem;display:flex;gap:8px;align-items:flex-start}
+.check.bad{background:var(--bad-soft)} .check.warn{background:var(--warn-soft)} .check.ok{background:var(--ok-soft)}
+
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(31,42,68,.45);display:none;align-items:flex-start;justify-content:center;padding:30px 12px;z-index:50;overflow:auto}
+.modal-bg.open{display:flex}
+.modal{width:100%;max-width:760px;background:#fff;border:3px solid var(--line);border-radius:20px;box-shadow:6px 6px 0 var(--line);animation:pop .18s ease-out}
+@keyframes pop{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
+.modal-head{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:2.5px solid var(--line);border-radius:17px 17px 0 0}
+.modal-head h2{margin:0;font-size:1.25rem}
+.modal-head.blood{background:var(--blood-soft)} .modal-head.spouse{background:var(--spouse-soft)} .modal-head.marr{background:#f0ebff} .modal-head.bad{background:var(--bad-soft)}
+.modal-body{padding:18px}
+.modal-foot{display:flex;gap:10px;justify-content:flex-end;padding:12px 18px;border-top:2px dashed #c9d2e3}
+.x{margin-left:auto;cursor:pointer;background:none;border:none;font-size:1.4rem;color:var(--ink)}
+.seg{display:flex;border:2.5px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:3px 3px 0 var(--line)}
+.seg button{flex:1;border:none;background:#fff;padding:9px;font-family:Fredoka,sans-serif;font-weight:600;cursor:pointer;color:var(--muted)}
+.seg button+button{border-left:2.5px solid var(--line)}
+.seg button.on.blood{background:var(--blood);color:#fff} .seg button.on.spouse{background:var(--spouse);color:#fff}
+
+/* toast */
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(120px);background:var(--ink);color:#fff;
+  padding:10px 18px;border-radius:12px;font-weight:700;transition:transform .25s;z-index:60;border:2.5px solid #fff;box-shadow:3px 3px 0 rgba(0,0,0,.25)}
+#toast.show{transform:translateX(-50%) translateY(0)}
+footer{text-align:center;color:var(--muted);font-size:.82rem;margin-top:26px}
+.hidden{display:none!important}
+@media (max-width:640px){header{flex-wrap:wrap}.head-actions{margin-left:0;justify-content:flex-start}header h1{font-size:1.25rem}
+  .stats{grid-template-columns:repeat(3,1fr);gap:8px}.stat{padding:8px 10px}.stat b{font-size:1.3rem}.stat span{font-size:.75rem}
+  .tabs{gap:5px;flex-wrap:nowrap}.tab{padding:8px 9px;font-size:.85rem}.tab .count{margin-left:3px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <!-- original mascot: a smiling little tree -->
+  <svg width="62" height="62" viewBox="0 0 64 64" aria-hidden="true">
+    <rect x="27" y="38" width="10" height="20" rx="3" fill="#a0673a" stroke="#1f2a44" stroke-width="2.5"/>
+    <circle cx="32" cy="26" r="20" fill="#7bd389" stroke="#1f2a44" stroke-width="2.5"/>
+    <circle cx="18" cy="20" r="4" fill="#2f80ed" stroke="#1f2a44" stroke-width="2"/>
+    <circle cx="46" cy="20" r="4" fill="#e8590c" stroke="#1f2a44" stroke-width="2"/>
+    <circle cx="32" cy="11" r="4" fill="#ffd43b" stroke="#1f2a44" stroke-width="2"/>
+    <circle cx="26" cy="27" r="2.3" fill="#1f2a44"/><circle cx="38" cy="27" r="2.3" fill="#1f2a44"/>
+    <path d="M26 33 q6 5 12 0" fill="none" stroke="#1f2a44" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="22" cy="32" r="2.4" fill="#ff8fa3" opacity=".7"/><circle cx="42" cy="32" r="2.4" fill="#ff8fa3" opacity=".7"/>
+  </svg>
+  <div>
+    <h1>Family Tree Data – FTM</h1>
+    <p>Collect people &amp; marriages now — build the tree later.</p>
+  </div>
+  <div class="head-actions">
+    <button class="btn" id="btnImport">⬆ Import CSV</button>
+    <button class="btn green" id="btnExportAll">⬇ Export CSVs</button>
+    <button class="btn" id="btnJson">{ } JSON</button>
+    <input type="file" id="fileImport" accept=".csv,.json" class="hidden" multiple>
+  </div>
+</header>
+
+<div class="stats" id="stats"></div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="people">👪 People <span class="count" id="cPeople">0</span></div>
+  <div class="tab" data-tab="marriages">💍 Marriages <span class="count" id="cMarr">0</span></div>
+  <div class="tab" data-tab="checks">✅ Data checks <span class="count" id="cChecks">0</span></div>
+</div>
+
+<!-- PEOPLE -->
+<section class="card panel" id="tab-people">
+  <div class="toolbar">
+    <button class="btn primary" id="addBlood">＋ Family member</button>
+    <button class="btn orange" id="addSpouse">＋ Spouse</button>
+    <input type="search" id="qPeople" placeholder="Search name, FID, year…">
+    <select id="fGen" style="width:auto"><option value="">All generations</option></select>
+    <button class="btn sm" id="expPeople">⬇ people.csv</button>
+  </div>
+  <div class="legend"><span><i class="dot" style="background:var(--blood)"></i>Family line (F)</span><span><i class="dot" style="background:var(--spouse)"></i>Spouse (S)</span></div>
+  <div style="height:10px"></div>
+  <div class="table-wrap"><table id="tPeople"></table></div>
+</section>
+
+<!-- MARRIAGES -->
+<section class="card panel hidden" id="tab-marriages">
+  <div class="toolbar">
+    <button class="btn" style="background:#7048e8;color:#fff" id="addMarr">＋ Marriage</button>
+    <input type="search" id="qMarr" placeholder="Search name, FID, year…">
+    <button class="btn sm" id="expMarr">⬇ marriages.csv</button>
+  </div>
+  <div class="table-wrap"><table id="tMarr"></table></div>
+</section>
+
+<!-- CHECKS -->
+<section class="card panel hidden" id="tab-checks">
+  <div class="toolbar">
+    <button class="btn" id="recalc">↻ Recalculate generations</button>
+    <span class="hint">Generation = parent's generation + 1. Spouses take their partner's generation. Founders (no parents, 0-0) are Gen 1.</span>
+  </div>
+  <div id="checkList"></div>
+</section>
+
+<footer>FTM v1.0 · Data is saved in this browser only — export CSVs regularly as your backup.</footer>
+</div>
+
+<!-- PERSON MODAL -->
+<div class="modal-bg" id="mPerson">
+  <div class="modal">
+    <div class="modal-head blood" id="pHead"><h2 id="pTitle">Add family member</h2><button class="x" data-close>×</button></div>
+    <div class="modal-body">
+      <div class="seg" id="pType" style="margin-bottom:16px">
+        <button type="button" data-v="F" class="on blood">🌳 Family line (F)</button>
+        <button type="button" data-v="S">💞 Spouse – married in (S)</button>
+      </div>
+      <div class="grid">
+        <div><label>FID</label><input id="pFID" readonly></div>
+        <div style="grid-column:span 2"><label>Full name *</label><input id="pName" placeholder="e.g. Ahmad bin Hassan"></div>
+        <div><label>Also known as <small>(optional)</small></label><input id="pAlt"></div>
+        <div><label>Gender</label><select id="pGender"><option value="M">Male</option><option value="F">Female</option><option value="U">Unknown</option></select></div>
+        <div class="bloodonly"><label>Father FID</label><select id="pFather"></select></div>
+        <div class="bloodonly"><label>Mother FID</label><select id="pMother"></select></div>
+        <div class="bloodonly"><label>Relation to parents</label><select id="pRel"><option>Biological</option><option>Adopted</option><option>Step</option><option>Foster</option></select></div>
+        <div class="bloodonly"><label>Birth order <small>(1 = eldest)</small></label><input id="pOrder" type="number" min="1"></div>
+        <div><label>Generation</label><input id="pGen" type="number" min="1"><div class="hint" id="pGenHint">Auto from parents</div></div>
+        <div><label>Year of birth</label><input id="pBirth" type="number" min="1000" max="2100" placeholder="YYYY"></div>
+        <div><label>Status</label><select id="pStatus"><option>Living</option><option>Deceased</option><option>Unknown</option></select></div>
+        <div id="deathBox"><label>Year of death</label><input id="pDeath" type="number" min="1000" max="2100" placeholder="YYYY or blank if unknown"></div>
+        <div class="full"><label>Notes</label><textarea id="pNotes" rows="2"></textarea></div>
+      </div>
+      <div class="hint" id="pParentHint" style="margin-top:10px">No father &amp; mother = Parent 0-0 → founder (Generation 1).</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>Cancel</button>
+      <button class="btn primary" id="pSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- MARRIAGE MODAL -->
+<div class="modal-bg" id="mMarr">
+  <div class="modal">
+    <div class="modal-head marr"><h2 id="mTitle">Add marriage</h2><button class="x" data-close>×</button></div>
+    <div class="modal-body">
+      <div class="grid">
+        <div><label>Marriage ID</label><input id="mMID" readonly></div>
+        <div style="grid-column:span 2"><label>Person A *</label><select id="mA"></select></div>
+        <div style="grid-column:span 2"><label>Person B (spouse) *</label><select id="mB"></select></div>
+        <div><label>Marriage no. <small>(for Person A)</small></label><input id="mOrd" type="number" min="1"></div>
+        <div><label>Year married</label><input id="mYear" type="number" min="1000" max="2100" placeholder="YYYY"></div>
+        <div><label>How it ended</label><select id="mEnd"><option>Ongoing</option><option>Divorced</option><option>Widowed</option><option>Unknown</option></select></div>
+        <div id="mEndBox"><label>Year ended</label><input id="mEndYear" type="number" min="1000" max="2100" placeholder="YYYY"></div>
+        <div><label>Concurrent? <small>(another marriage at same time)</small></label><select id="mConc"><option value="N">No</option><option value="Y">Yes</option></select></div>
+        <div class="full"><label>Notes</label><textarea id="mNotes" rows="2"></textarea></div>
+      </div>
+      <div class="hint" style="margin-top:10px">Spouse 2a (after divorce) → End = Divorced on marriage 1. Spouse 2b (two wives at once) → Concurrent = Yes.</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>Cancel</button>
+      <button class="btn" style="background:#7048e8;color:#fff" id="mSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="modal-bg" id="mConfirm">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-head bad"><h2>Delete record?</h2><button class="x" data-close>×</button></div>
+    <div class="modal-body" id="cMsg"></div>
+    <div class="modal-foot"><button class="btn" data-close>Cancel</button><button class="btn danger" id="cYes">Delete</button></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(() => {
+const KEY = 'ftm-data-v1';
+const P_COLS = ['FID','Name','AlsoKnownAs','Gender','Type','Generation','FatherFID','MotherFID','Relation','BirthOrder','BirthYear','DeathYear','Status','Notes'];
+const M_COLS = ['MID','PersonA','PersonB','MarriageNo','YearMarried','YearEnded','EndType','Concurrent','Notes'];
+let db = { people: [], marriages: [] };
+let sortP = { k:'FID', d:1 }, sortM = { k:'MID', d:1 };
+
+// ---------- storage ----------
+function load(){ try{ const s = localStorage.getItem(KEY); if(s){ const d = JSON.parse(s); db.people = d.people||[]; db.marriages = d.marriages||[]; } }catch(e){} }
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(db)); }catch(e){} render(); }
+
+// ---------- helpers ----------
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const byId = fid => db.people.find(p => p.FID === fid);
+const nameOf = fid => { const p = byId(fid); return p ? p.Name : ''; };
+function nextId(prefix, list, key){
+  let max = 0; list.forEach(r => { if((r[key]||'').startsWith(prefix)){ const n = parseInt(r[key].slice(1),10); if(n>max) max=n; } });
+  return prefix + String(max+1).padStart(4,'0');
+}
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2200); }
+const fidTag = fid => fid ? `<span class="fid ${esc(fid[0])}">${esc(fid)}</span>` : '<span style="color:var(--muted)">0-0</span>';
+function partnersOf(fid){ return db.marriages.filter(m => m.PersonA===fid || m.PersonB===fid).map(m => m.PersonA===fid ? m.PersonB : m.PersonA); }
+
+function deriveGen(p){
+  if(p.Type === 'F'){
+    const gens = [p.FatherFID, p.MotherFID].map(byId).filter(Boolean).map(x => +x.Generation || 0).filter(Boolean);
+    if(!p.FatherFID && !p.MotherFID) return 1;
+    return gens.length ? Math.max(...gens) + 1 : '';
+  }
+  const g = partnersOf(p.FID).map(byId).filter(x => x && x.Type==='F').map(x => +x.Generation||0).filter(Boolean);
+  return g.length ? Math.min(...g) : '';
+}
+
+// ---------- tabs ----------
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x===t));
+  ['people','marriages','checks'].forEach(n => $('tab-'+n).classList.toggle('hidden', n!==t.dataset.tab));
+});
+
+// ---------- render ----------
+function render(){ renderStats(); renderPeople(); renderMarr(); renderChecks(); }
+
+function renderStats(){
+  const f = db.people.filter(p=>p.Type==='F').length, s = db.people.filter(p=>p.Type==='S').length;
+  const gens = new Set(db.people.map(p=>p.Generation).filter(Boolean));
+  const living = db.people.filter(p=>p.Status==='Living').length;
+  $('stats').innerHTML = `
+    <div class="stat blood"><b>${f}</b><span>Family line</span></div>
+    <div class="stat spouse"><b>${s}</b><span>Spouses</span></div>
+    <div class="stat"><b>${db.marriages.length}</b><span>Marriages</span></div>
+    <div class="stat"><b>${gens.size}</b><span>Generations</span></div>
+    <div class="stat"><b>${living}</b><span>Living</span></div>`;
+  $('cPeople').textContent = db.people.length; $('cMarr').textContent = db.marriages.length;
+  const sel = $('fGen'), cur = sel.value;
+  sel.innerHTML = '<option value="">All generations</option>' + [...gens].sort((a,b)=>a-b).map(g=>`<option value="${g}">Generation ${g}</option>`).join('');
+  sel.value = cur;
+}
+
+function sorter(k, d){ return (a,b) => {
+  const x = a[k] ?? '', y = b[k] ?? '';
+  const nx = +x, ny = +y;
+  if(x!=='' && y!=='' && !isNaN(nx) && !isNaN(ny)) return (nx-ny)*d;
+  return String(x).localeCompare(String(y))*d;
+};}
+function thRow(cols, sort, tbl){
+  return '<tr>' + cols.map(([k,l]) => `<th data-k="${k}" data-t="${tbl}">${l}${sort.k===k?(sort.d>0?' ▲':' ▼'):''}</th>`).join('') + '<th>Actions</th></tr>';
+}
+function emptyRow(n, msg){
+  return `<tr><td colspan="${n}" class="empty"><svg width="70" height="60" viewBox="0 0 70 60"><rect x="31" y="34" width="8" height="20" rx="2" fill="#a0673a" stroke="#1f2a44" stroke-width="2"/><circle cx="35" cy="24" r="17" fill="#e9f7ec" stroke="#1f2a44" stroke-width="2"/><circle cx="30" cy="24" r="2" fill="#1f2a44"/><circle cx="40" cy="24" r="2" fill="#1f2a44"/><path d="M30 31 q5 -3 10 0" fill="none" stroke="#1f2a44" stroke-width="2" stroke-linecap="round"/></svg>${msg}</td></tr>`;
+}
+
+function renderPeople(){
+  const q = $('qPeople').value.trim().toLowerCase(), g = $('fGen').value;
+  const cols = [['FID','FID'],['Name','Name'],['Gender','Sex'],['Generation','Gen'],['FatherFID','Father'],['MotherFID','Mother'],['BirthOrder','#'],['BirthYear','Born'],['DeathYear','Died'],['Status','Status'],['spouses','Spouse(s)']];
+  let rows = db.people.filter(p => (!g || String(p.Generation)===g) &&
+    (!q || [p.FID,p.Name,p.AlsoKnownAs,p.BirthYear,p.DeathYear,p.Notes].join(' ').toLowerCase().includes(q)));
+  rows.sort(sorter(sortP.k, sortP.d));
+  let html = thRow(cols, sortP, 'P');
+  if(!rows.length) html += emptyRow(cols.length+1, db.people.length ? 'No matches.' : 'No one here yet — start with a Generation 1 founder.');
+  rows.forEach(p => {
+    const sp = partnersOf(p.FID).map(f => `${fidTag(f)} ${esc(nameOf(f))}`).join('<br>');
+    html += `<tr class="${p.Type==='S'?'spouse':'blood'}">
+      <td>${fidTag(p.FID)}</td>
+      <td><b>${esc(p.Name)}</b>${p.AlsoKnownAs?`<br><small style="color:var(--muted)">${esc(p.AlsoKnownAs)}</small>`:''}</td>
+      <td>${esc(p.Gender)}</td><td>${esc(p.Generation)}</td>
+      <td>${p.Type==='S'?'—':fidTag(p.FatherFID)}</td><td>${p.Type==='S'?'—':fidTag(p.MotherFID)}</td>
+      <td>${esc(p.BirthOrder)}</td><td>${esc(p.BirthYear)}</td><td>${esc(p.DeathYear)}</td>
+      <td><span class="pill ${esc((p.Status||'').toLowerCase())}">${esc(p.Status)}</span></td>
+      <td>${sp||'<span style="color:var(--muted)">Not married</span>'}</td>
+      <td><div class="actions"><button class="btn sm" data-edit-p="${esc(p.FID)}">✎ Edit</button><button class="btn sm danger" data-del-p="${esc(p.FID)}">🗑</button></div></td></tr>`;
+  });
+  $('tPeople').innerHTML = html;
+}
+
+function renderMarr(){
+  const q = $('qMarr').value.trim().toLowerCase();
+  const cols = [['MID','ID'],['PersonA','Person A'],['PersonB','Person B'],['MarriageNo','No.'],['YearMarried','Married'],['EndType','Ended'],['YearEnded','Year ended'],['Concurrent','Concurrent']];
+  let rows = db.marriages.filter(m => !q || [m.MID,m.PersonA,m.PersonB,nameOf(m.PersonA),nameOf(m.PersonB),m.YearMarried,m.Notes].join(' ').toLowerCase().includes(q));
+  rows.sort(sorter(sortM.k, sortM.d));
+  let html = thRow(cols, sortM, 'M');
+  if(!rows.length) html += emptyRow(cols.length+1, db.marriages.length ? 'No matches.' : 'No marriages yet. Add the people first, then link them here.');
+  rows.forEach(m => {
+    html += `<tr><td>${fidTag(m.MID)}</td>
+      <td>${fidTag(m.PersonA)} ${esc(nameOf(m.PersonA))}</td><td>${fidTag(m.PersonB)} ${esc(nameOf(m.PersonB))}</td>
+      <td>${esc(m.MarriageNo)}</td><td>${esc(m.YearMarried)}</td>
+      <td><span class="pill ${esc((m.EndType||'').toLowerCase())}">${esc(m.EndType)}</span></td><td>${esc(m.YearEnded)}</td>
+      <td>${m.Concurrent==='Y'?'<span class="pill conc">Yes (2b)</span>':'No'}</td>
+      <td><div class="actions"><button class="btn sm" data-edit-m="${esc(m.MID)}">✎ Edit</button><button class="btn sm danger" data-del-m="${esc(m.MID)}">🗑</button></div></td></tr>`;
+  });
+  $('tMarr').innerHTML = html;
+}
+
+// ---------- checks ----------
+function runChecks(){
+  const out = [];
+  const add = (lvl, msg) => out.push({lvl, msg});
+  const ids = new Set();
+  db.people.forEach(p => {
+    if(ids.has(p.FID)) add('bad', `Duplicate FID ${p.FID}`); ids.add(p.FID);
+    if(p.Type==='F'){
+      ['FatherFID','MotherFID'].forEach(k => { if(p[k] && !byId(p[k])) add('bad', `${p.FID} ${p.Name}: ${k==='FatherFID'?'father':'mother'} ${p[k]} does not exist`); });
+      [p.FatherFID, p.MotherFID].map(byId).filter(Boolean).forEach(par => {
+        if(par.BirthYear && p.BirthYear && +p.BirthYear <= +par.BirthYear) add('bad', `${p.FID} ${p.Name} born ${p.BirthYear}, not after parent ${par.FID} (${par.BirthYear})`);
+        else if(par.BirthYear && p.BirthYear && +p.BirthYear - +par.BirthYear < 13) add('warn', `${p.FID} ${p.Name}: parent ${par.FID} only ${p.BirthYear-par.BirthYear} years older`);
+      });
+      if(p.FatherFID && p.MotherFID){
+        const linked = db.marriages.some(m => (m.PersonA===p.FatherFID && m.PersonB===p.MotherFID) || (m.PersonB===p.FatherFID && m.PersonA===p.MotherFID));
+        if(!linked) add('warn', `${p.FID} ${p.Name}: parents ${p.FatherFID} & ${p.MotherFID} have no marriage record`);
+      }
+      if(!p.FatherFID && !p.MotherFID && +p.Generation !== 1) add('warn', `${p.FID} ${p.Name} has no parents (0-0) but is Generation ${p.Generation||'blank'}`);
+    } else if(!partnersOf(p.FID).length) add('warn', `${p.FID} ${p.Name} is a spouse but has no marriage record`);
+    const dg = deriveGen(p);
+    if(dg !== '' && String(dg) !== String(p.Generation)) add('warn', `${p.FID} ${p.Name}: Generation ${p.Generation||'blank'}, expected ${dg}`);
+    if(p.DeathYear && p.BirthYear && +p.DeathYear < +p.BirthYear) add('bad', `${p.FID} ${p.Name}: died before born`);
+    if(p.Status==='Living' && p.DeathYear) add('bad', `${p.FID} ${p.Name}: marked Living but has a death year`);
+  });
+  db.marriages.forEach(m => {
+    [m.PersonA, m.PersonB].forEach(f => { if(!byId(f)) add('bad', `${m.MID}: person ${f} does not exist`); });
+    if(m.PersonA === m.PersonB) add('bad', `${m.MID}: same person on both sides`);
+    if(m.YearEnded && m.YearMarried && +m.YearEnded < +m.YearMarried) add('bad', `${m.MID}: ended before it started`);
+    if(m.EndType==='Ongoing'){
+      const others = db.marriages.filter(o => o!==m && o.EndType==='Ongoing' && [o.PersonA,o.PersonB].some(x => x===m.PersonA || x===m.PersonB));
+      if(others.length && m.Concurrent!=='Y') add('warn', `${m.MID}: overlaps ${others.map(o=>o.MID).join(', ')} — set Concurrent = Yes if intended (2b)`);
+    }
+  });
+  return out;
+}
+function renderChecks(){
+  const c = runChecks();
+  $('cChecks').textContent = c.length;
+  $('cChecks').style.background = c.some(x=>x.lvl==='bad') ? 'var(--bad)' : c.length ? 'var(--warn)' : 'var(--ok)';
+  $('checkList').innerHTML = c.length ? c.map(x => `<div class="check ${x.lvl}">${x.lvl==='bad'?'⛔':'⚠️'} ${esc(x.msg)}</div>`).join('')
+    : '<div class="check ok">🎉 All good — no problems found.</div>';
+}
+$('recalc').onclick = () => {
+  for(let i=0;i<12;i++) db.people.forEach(p => { const g = deriveGen(p); if(g!=='') p.Generation = String(g); });
+  save(); toast('Generations recalculated');
+};
+
+// ---------- person form ----------
+let editP = null, pType = 'F';
+function personOptions(sel, val, filterFn, exclude){
+  sel.innerHTML = '<option value="">— none (0-0) —</option>' + db.people.filter(p => p.FID!==exclude && filterFn(p))
+    .sort((a,b)=>a.FID.localeCompare(b.FID)).map(p => `<option value="${esc(p.FID)}">${esc(p.FID)} · ${esc(p.Name)}${p.Generation?' (G'+esc(p.Generation)+')':''}</option>`).join('');
+  sel.value = val || '';
+}
+function setType(t){
+  pType = t;
+  document.querySelectorAll('#pType button').forEach(b => { const on = b.dataset.v===t; b.className = on ? 'on ' + (t==='F'?'blood':'spouse') : ''; });
+  document.querySelectorAll('.bloodonly').forEach(e => e.classList.toggle('hidden', t==='S'));
+  $('pParentHint').classList.toggle('hidden', t==='S');
+  $('pHead').className = 'modal-head ' + (t==='F'?'blood':'spouse');
+  $('pSave').className = 'btn ' + (t==='F'?'primary':'orange');
+  if(!editP) $('pFID').value = nextId(t, db.people, 'FID');
+  $('pGenHint').textContent = t==='F' ? 'Auto: parent + 1 (founder = 1)' : 'Auto: same as partner';
+  $('pTitle').textContent = (editP?'Edit ':'Add ') + (t==='F'?'family member':'spouse');
+}
+document.querySelectorAll('#pType button').forEach(b => b.onclick = () => { if(editP && editP.Type!==b.dataset.v){ toast('Type is fixed by FID once saved'); return; } setType(b.dataset.v); autoGen(); });
+function autoGen(){
+  if(pType!=='F') return;
+  const tmp = { Type:'F', FatherFID:$('pFather').value, MotherFID:$('pMother').value, FID:$('pFID').value };
+  const g = deriveGen(tmp); if(g!=='') $('pGen').value = g;
+}
+$('pFather').onchange = autoGen; $('pMother').onchange = autoGen;
+$('pStatus').onchange = () => $('deathBox').classList.toggle('hidden', $('pStatus').value==='Living');
+
+function openPerson(type, p){
+  editP = p || null;
+  const self = p ? p.FID : null;
+  personOptions($('pFather'), p?.FatherFID, x => x.Gender!=='F', self);
+  personOptions($('pMother'), p?.MotherFID, x => x.Gender!=='M', self);
+  $('pFID').value = p?.FID || '';
+  $('pName').value = p?.Name || ''; $('pAlt').value = p?.AlsoKnownAs || '';
+  $('pGender').value = p?.Gender || 'M'; $('pRel').value = p?.Relation || 'Biological';
+  $('pOrder').value = p?.BirthOrder || ''; $('pGen').value = p?.Generation || '';
+  $('pBirth').value = p?.BirthYear || ''; $('pDeath').value = p?.DeathYear || '';
+  $('pStatus').value = p?.Status || 'Living'; $('pNotes').value = p?.Notes || '';
+  setType(p ? p.Type : type);
+  $('pStatus').onchange();
+  if(!p) autoGen();
+  open('mPerson'); setTimeout(()=>$('pName').focus(), 50);
+}
+$('addBlood').onclick = () => openPerson('F');
+$('addSpouse').onclick = () => openPerson('S');
+$('pSave').onclick = () => {
+  const name = $('pName').value.trim();
+  if(!name){ toast('Please enter a name'); $('pName').focus(); return; }
+  const b = $('pBirth').value, d = $('pDeath').value;
+  if(b && d && +d < +b){ toast('Death year is before birth year'); return; }
+  const rec = {
+    FID: $('pFID').value, Name: name, AlsoKnownAs: $('pAlt').value.trim(), Gender: $('pGender').value, Type: pType,
+    Generation: $('pGen').value, FatherFID: pType==='F'?$('pFather').value:'', MotherFID: pType==='F'?$('pMother').value:'',
+    Relation: pType==='F'?$('pRel').value:'', BirthOrder: pType==='F'?$('pOrder').value:'',
+    BirthYear: b, DeathYear: $('pStatus').value==='Living' ? '' : d, Status: $('pStatus').value, Notes: $('pNotes').value.trim()
+  };
+  if(rec.Type==='S' && !rec.Generation){ const g = deriveGen(rec); if(g!=='') rec.Generation = String(g); }
+  if(editP) Object.assign(editP, rec); else db.people.push(rec);
+  close('mPerson'); save(); toast((editP?'Updated ':'Added ') + rec.FID);
+  if(!editP && rec.Type==='S') setTimeout(() => toast('Tip: link this spouse in the Marriages tab'), 2300);
+};
+
+// ---------- marriage form ----------
+let editM = null;
+function openMarr(m){
+  if(db.people.length < 2){ toast('Add at least two people first'); return; }
+  editM = m || null;
+  const opts = db.people.slice().sort((a,b)=>a.FID.localeCompare(b.FID)).map(p => `<option value="${esc(p.FID)}">${esc(p.FID)} · ${esc(p.Name)}</option>`).join('');
+  $('mA').innerHTML = '<option value="">— choose —</option>' + opts; $('mB').innerHTML = '<option value="">— choose —</option>' + opts;
+  $('mMID').value = m?.MID || nextId('M', db.marriages, 'MID');
+  $('mA').value = m?.PersonA || ''; $('mB').value = m?.PersonB || '';
+  $('mOrd').value = m?.MarriageNo || ''; $('mYear').value = m?.YearMarried || '';
+  $('mEnd').value = m?.EndType || 'Ongoing'; $('mEndYear').value = m?.YearEnded || '';
+  $('mConc').value = m?.Concurrent || 'N'; $('mNotes').value = m?.Notes || '';
+  $('mTitle').textContent = m ? 'Edit marriage' : 'Add marriage';
+  $('mEnd').onchange(); open('mMarr');
+}
+$('mEnd').onchange = () => $('mEndBox').classList.toggle('hidden', $('mEnd').value==='Ongoing');
+$('mA').onchange = () => { if(!editM && $('mA').value) $('mOrd').value = db.marriages.filter(m => m.PersonA===$('mA').value || m.PersonB===$('mA').value).length + 1; };
+$('addMarr').onclick = () => openMarr();
+$('mSave').onclick = () => {
+  const a = $('mA').value, b = $('mB').value;
+  if(!a || !b){ toast('Choose both people'); return; }
+  if(a===b){ toast('Pick two different people'); return; }
+  const y = $('mYear').value, e = $('mEnd').value==='Ongoing' ? '' : $('mEndYear').value;
+  if(y && e && +e < +y){ toast('End year is before marriage year'); return; }
+  const rec = { MID: $('mMID').value, PersonA: a, PersonB: b, MarriageNo: $('mOrd').value, YearMarried: y, YearEnded: e,
+    EndType: $('mEnd').value, Concurrent: $('mConc').value, Notes: $('mNotes').value.trim() };
+  if(editM) Object.assign(editM, rec); else db.marriages.push(rec);
+  // spouse generation follows partner
+  [a,b].map(byId).forEach(p => { if(p && p.Type==='S' && !p.Generation){ const g = deriveGen(p); if(g!=='') p.Generation = String(g); } });
+  close('mMarr'); save(); toast((editM?'Updated ':'Added ') + rec.MID);
+};
+
+// ---------- delete ----------
+let pendingDel = null;
+function confirmDel(msg, fn){ $('cMsg').innerHTML = msg; pendingDel = fn; open('mConfirm'); }
+$('cYes').onclick = () => { if(pendingDel) pendingDel(); pendingDel = null; close('mConfirm'); };
+
+// ---------- table clicks ----------
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-edit-p],[data-del-p],[data-edit-m],[data-del-m],th[data-k],[data-close]');
+  if(!t) return;
+  if(t.dataset.close !== undefined){ close(t.closest('.modal-bg').id); return; }
+  if(t.dataset.k){
+    const s = t.dataset.t==='P' ? sortP : sortM; if(t.dataset.k==='spouses') return;
+    if(s.k===t.dataset.k) s.d *= -1; else { s.k = t.dataset.k; s.d = 1; }
+    t.dataset.t==='P' ? renderPeople() : renderMarr(); return;
+  }
+  if(t.dataset.editP) openPerson(null, byId(t.dataset.editP));
+  if(t.dataset.editM) openMarr(db.marriages.find(m => m.MID===t.dataset.editM));
+  if(t.dataset.delP){
+    const fid = t.dataset.delP, p = byId(fid);
+    const kids = db.people.filter(x => x.FatherFID===fid || x.MotherFID===fid);
+    const marr = db.marriages.filter(m => m.PersonA===fid || m.PersonB===fid);
+    confirmDel(`<p>Delete <b>${esc(fid)} · ${esc(p.Name)}</b>?</p>` +
+      (kids.length ? `<p>⚠️ ${kids.length} child record(s) will lose this parent link (set to 0-0).</p>` : '') +
+      (marr.length ? `<p>⚠️ ${marr.length} marriage record(s) will also be deleted.</p>` : '') + '<p class="hint">Tip: export CSVs first as a backup.</p>',
+      () => {
+        db.people = db.people.filter(x => x.FID !== fid);
+        kids.forEach(k => { if(k.FatherFID===fid) k.FatherFID=''; if(k.MotherFID===fid) k.MotherFID=''; });
+        db.marriages = db.marriages.filter(m => !marr.includes(m));
+        save(); toast('Deleted ' + fid);
+      });
+  }
+  if(t.dataset.delM){
+    const mid = t.dataset.delM, m = db.marriages.find(x => x.MID===mid);
+    confirmDel(`<p>Delete marriage <b>${esc(mid)}</b> between ${esc(nameOf(m.PersonA))} and ${esc(nameOf(m.PersonB))}?</p>`,
+      () => { db.marriages = db.marriages.filter(x => x.MID !== mid); save(); toast('Deleted ' + mid); });
+  }
+});
+
+// ---------- modals ----------
+function open(id){ $(id).classList.add('open'); }
+function close(id){ $(id).classList.remove('open'); }
+document.querySelectorAll('.modal-bg').forEach(bg => bg.addEventListener('mousedown', e => { if(e.target===bg) close(bg.id); }));
+document.addEventListener('keydown', e => { if(e.key==='Escape') document.querySelectorAll('.modal-bg.open').forEach(m => close(m.id)); });
+
+// ---------- search/filter ----------
+$('qPeople').oninput = renderPeople; $('fGen').onchange = renderPeople; $('qMarr').oninput = renderMarr;
+
+// ---------- CSV export ----------
+function toCSV(rows, cols){
+  const cell = v => { v = String(v ?? ''); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v; };
+  return [cols.join(','), ...rows.map(r => cols.map(c => cell(r[c])).join(','))].join('\r\n');
+}
+function download(name, text, type){
+  const blob = new Blob([type==='csv' ? '﻿' + text : text], { type: type==='csv' ? 'text/csv;charset=utf-8' : 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+const stamp = () => new Date().toISOString().slice(0,10);
+const expP = () => download(`FTM_people_${stamp()}.csv`, toCSV(db.people, P_COLS), 'csv');
+const expM = () => download(`FTM_marriages_${stamp()}.csv`, toCSV(db.marriages, M_COLS), 'csv');
+$('expPeople').onclick = expP; $('expMarr').onclick = expM;
+$('btnExportAll').onclick = () => { expP(); setTimeout(expM, 400); toast('Exported people + marriages CSV'); };
+$('btnJson').onclick = () => download(`FTM_family_${stamp()}.json`, JSON.stringify(db, null, 2), 'json');
+
+// ---------- CSV / JSON import ----------
+function parseCSV(text){
+  text = text.replace(/^﻿/, '');
+  const rows = []; let row = [], cur = '', q = false;
+  for(let i=0;i<text.length;i++){
+    const c = text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){ cur+='"'; i++; } else q=false; } else cur+=c; }
+    else if(c==='"') q = true;
+    else if(c===','){ row.push(cur); cur=''; }
+    else if(c==='\n'||c==='\r'){ if(c==='\r'&&text[i+1]==='\n') i++; row.push(cur); rows.push(row); row=[]; cur=''; }
+    else cur += c;
+  }
+  if(cur!=='' || row.length){ row.push(cur); rows.push(row); }
+  const head = (rows.shift()||[]).map(h => h.trim());
+  return { head, data: rows.filter(r => r.some(v => v.trim()!=='')).map(r => Object.fromEntries(head.map((h,i) => [h, (r[i]||'').trim()]))) };
+}
+$('btnImport').onclick = () => $('fileImport').click();
+$('fileImport').onchange = async e => {
+  let msgs = [];
+  for(const f of e.target.files){
+    const text = await f.text();
+    if(f.name.toLowerCase().endsWith('.json')){
+      try{ const d = JSON.parse(text); db.people = d.people||[]; db.marriages = d.marriages||[]; msgs.push('JSON loaded'); }catch(err){ msgs.push(f.name+': invalid JSON'); }
+      continue;
+    }
+    const { head, data } = parseCSV(text);
+    const merge = (list, key, rows) => rows.forEach(r => { const i = list.findIndex(x => x[key]===r[key]); i>=0 ? Object.assign(list[i], r) : list.push(r); });
+    if(head.includes('FID')){ data.forEach(r => { if(!r.Type) r.Type = (r.FID||'')[0]==='S' ? 'S' : 'F'; }); merge(db.people, 'FID', data); msgs.push(`${data.length} people`); }
+    else if(head.includes('MID')){ merge(db.marriages, 'MID', data); msgs.push(`${data.length} marriages`); }
+    else msgs.push(f.name + ': unknown columns');
+  }
+  e.target.value = ''; save(); toast('Imported: ' + msgs.join(', '));
+};
+
+load(); render();
+})();
+</script>
+</body>
+</html>
