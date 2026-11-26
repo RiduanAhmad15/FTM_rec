@@ -118,6 +118,8 @@ tr.spouse{background:#fffaf6}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(120px);background:var(--ink);color:#fff;
   padding:10px 18px;border-radius:12px;font-weight:700;transition:transform .25s;z-index:60;border:2.5px solid #fff;box-shadow:3px 3px 0 rgba(0,0,0,.25)}
 #toast.show{transform:translateX(-50%) translateY(0)}
+.sync{align-self:center;font-weight:700;font-size:.82rem;padding:5px 10px;border-radius:20px;border:2px solid var(--line);background:#eef2f9;white-space:nowrap}
+.sync.on{background:var(--ok-soft);color:var(--ok)} .sync.busy{background:var(--warn-soft);color:#8a6400} .sync.off{background:var(--bad-soft);color:var(--bad)}
 footer{text-align:center;color:var(--muted);font-size:.82rem;margin-top:26px}
 .hidden{display:none!important}
 @media (max-width:640px){header{flex-wrap:wrap}.head-actions{margin-left:0;justify-content:flex-start}header h1{font-size:1.25rem}
@@ -145,6 +147,8 @@ footer{text-align:center;color:var(--muted);font-size:.82rem;margin-top:26px}
     <p>Collect people &amp; marriages now — build the tree later.</p>
   </div>
   <div class="head-actions">
+    <span class="sync" id="sync" title="Where your data is saved">● Local only</span>
+    <button class="btn hidden" id="btnLock" title="Forget PIN on this device">🔒 Lock</button>
     <button class="btn" id="btnImport">⬆ Import CSV</button>
     <button class="btn green" id="btnExportAll">⬇ Export CSVs</button>
     <button class="btn" id="btnJson">{ } JSON</button>
@@ -158,6 +162,7 @@ footer{text-align:center;color:var(--muted);font-size:.82rem;margin-top:26px}
   <div class="tab active" data-tab="people">👪 People <span class="count" id="cPeople">0</span></div>
   <div class="tab" data-tab="marriages">💍 Marriages <span class="count" id="cMarr">0</span></div>
   <div class="tab" data-tab="checks">✅ Data checks <span class="count" id="cChecks">0</span></div>
+  <div class="tab hidden" data-tab="activity" id="tabActivity">🕘 Activity</div>
 </div>
 
 <!-- PEOPLE -->
@@ -193,7 +198,13 @@ footer{text-align:center;color:var(--muted);font-size:.82rem;margin-top:26px}
   <div id="checkList"></div>
 </section>
 
-<footer>FTM v1.0 · Data is saved in this browser only — export CSVs regularly as your backup.</footer>
+<!-- ACTIVITY -->
+<section class="card panel hidden" id="tab-activity">
+  <div class="toolbar"><button class="btn" id="refreshLog">↻ Refresh</button><span class="hint">Who added, edited or deleted what — newest first.</span></div>
+  <div class="table-wrap"><table id="tLog"></table></div>
+</section>
+
+<footer id="foot">FTM v1.1 · Local mode: data is saved in this browser only — export CSVs regularly as your backup.</footer>
 </div>
 
 <!-- PERSON MODAL -->
@@ -220,6 +231,7 @@ footer{text-align:center;color:var(--muted);font-size:.82rem;margin-top:26px}
         <div id="deathBox"><label>Year of death</label><input id="pDeath" type="number" min="1000" max="2100" placeholder="YYYY or blank if unknown"></div>
         <div class="full"><label>Notes</label><textarea id="pNotes" rows="2"></textarea></div>
       </div>
+      <div class="hint" id="pEdited" style="margin-top:10px"></div>
       <div class="hint" id="pParentHint" style="margin-top:10px">No father &amp; mother = Parent 0-0 → founder (Generation 1).</div>
     </div>
     <div class="modal-foot">
@@ -245,7 +257,8 @@ footer{text-align:center;color:var(--muted);font-size:.82rem;margin-top:26px}
         <div><label>Concurrent? <small>(another marriage at same time)</small></label><select id="mConc"><option value="N">No</option><option value="Y">Yes</option></select></div>
         <div class="full"><label>Notes</label><textarea id="mNotes" rows="2"></textarea></div>
       </div>
-      <div class="hint" style="margin-top:10px">Spouse 2a (after divorce) → End = Divorced on marriage 1. Spouse 2b (two wives at once) → Concurrent = Yes.</div>
+      <div class="hint" id="mEdited" style="margin-top:10px"></div>
+      <div class="hint" style="margin-top:4px">Spouse 2a (after divorce) → End = Divorced on marriage 1. Spouse 2b (two wives at once) → Concurrent = Yes.</div>
     </div>
     <div class="modal-foot">
       <button class="btn" data-close>Cancel</button>
@@ -263,6 +276,22 @@ footer{text-align:center;color:var(--muted);font-size:.82rem;margin-top:26px}
   </div>
 </div>
 
+<!-- PIN MODAL -->
+<div class="modal-bg" id="mPin">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-head blood"><h2>🔑 Family sign-in</h2></div>
+    <div class="modal-body">
+      <p style="margin-top:0">This is the shared family copy. Enter the family PIN to view and edit.</p>
+      <div class="grid" style="grid-template-columns:1fr">
+        <div><label>Your name <small>(shown in the activity log)</small></label><input id="pinName" maxlength="40" placeholder="e.g. Ridz"></div>
+        <div><label>Family PIN</label><input id="pinVal" type="password" autocomplete="current-password" inputmode="text"></div>
+      </div>
+      <div class="hint" id="pinErr" style="color:var(--bad);font-weight:700;margin-top:8px"></div>
+    </div>
+    <div class="modal-foot"><button class="btn primary" id="pinGo">Open family data</button></div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -273,9 +302,58 @@ const M_COLS = ['MID','PersonA','PersonB','MarriageNo','YearMarried','YearEnded'
 let db = { people: [], marriages: [] };
 let sortP = { k:'FID', d:1 }, sortM = { k:'MID', d:1 };
 
-// ---------- storage ----------
-function load(){ try{ const s = localStorage.getItem(KEY); if(s){ const d = JSON.parse(s); db.people = d.people||[]; db.marriages = d.marriages||[]; } }catch(e){} }
-function save(){ try{ localStorage.setItem(KEY, JSON.stringify(db)); }catch(e){} render(); }
+// ---------- storage: local (this browser) or online (shared, via Worker + D1) ----------
+let mode = 'local', PIN = '', EDITOR = '';
+const ls = { get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }, set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }, del(k){ try{ localStorage.removeItem(k); }catch(e){} } };
+function load(){ try{ const s = ls.get(KEY); if(s){ const d = JSON.parse(s); db.people = d.people||[]; db.marriages = d.marriages||[]; } }catch(e){} }
+function save(){ if(mode==='local') ls.set(KEY, JSON.stringify(db)); render(); }
+function setSync(state, text){ const el = $('sync'); el.className = 'sync ' + state; el.textContent = text; }
+
+async function apiCall(method, path, body){
+  setSync('busy', method==='GET' ? '● Syncing…' : '● Saving…');
+  let r, j;
+  try{
+    r = await fetch(path, { method, headers: { 'Content-Type':'application/json', 'X-FTM-PIN': PIN, 'X-FTM-Editor': EDITOR }, body: body ? JSON.stringify(body) : undefined });
+    j = await r.json().catch(() => ({ error: 'Unexpected server reply' }));
+  }catch(e){ setSync('off', '● Offline'); throw new Error('No connection — change not saved'); }
+  if(r.status === 401 || r.status === 429){ showPin(j.error || 'Wrong PIN'); setSync('off', '● Locked'); throw new Error(j.error || 'Wrong PIN'); }
+  const d = j.data || (Array.isArray(j.people) ? j : null);
+  if(d){ db.people = d.people; db.marriages = d.marriages; render(); }
+  setSync('on', '● Shared · online');
+  if(!r.ok) throw new Error(j.error || ('Error ' + r.status));
+  return j;
+}
+const store = {
+  async person(rec, base){
+    if(mode === 'online') return apiCall('POST', '/api/person', { rec, base });
+    const cur = rec.FID && byId(rec.FID);
+    if(cur) Object.assign(cur, rec); else { rec.FID = nextId(rec.Type, db.people, 'FID'); db.people.push(rec); }
+    save(); return { id: rec.FID };
+  },
+  async delPerson(fid){
+    if(mode === 'online') return apiCall('DELETE', '/api/person/' + encodeURIComponent(fid));
+    db.people = db.people.filter(x => x.FID !== fid);
+    db.people.forEach(k => { if(k.FatherFID===fid) k.FatherFID=''; if(k.MotherFID===fid) k.MotherFID=''; });
+    db.marriages = db.marriages.filter(m => m.PersonA!==fid && m.PersonB!==fid);
+    save();
+  },
+  async marriage(rec, base){
+    if(mode === 'online') return apiCall('POST', '/api/marriage', { rec, base });
+    const cur = rec.MID && db.marriages.find(m => m.MID===rec.MID);
+    if(cur) Object.assign(cur, rec); else { rec.MID = nextId('M', db.marriages, 'MID'); db.marriages.push(rec); }
+    save(); return { id: rec.MID };
+  },
+  async delMarriage(mid){
+    if(mode === 'online') return apiCall('DELETE', '/api/marriage/' + encodeURIComponent(mid));
+    db.marriages = db.marriages.filter(x => x.MID !== mid); save();
+  },
+  async bulk(people, marriages, reason){
+    if(mode === 'online') return apiCall('POST', '/api/import', { people, marriages, reason });
+    const merge = (list, key, rows) => rows.forEach(r => { const i = list.findIndex(x => x[key]===r[key]); i>=0 ? Object.assign(list[i], r) : list.push(r); });
+    merge(db.people, 'FID', people); merge(db.marriages, 'MID', marriages); save();
+  }
+};
+const fail = e => toast('⚠️ ' + e.message);
 
 // ---------- helpers ----------
 const $ = id => document.getElementById(id);
@@ -303,7 +381,7 @@ function deriveGen(p){
 // ---------- tabs ----------
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
   document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x===t));
-  ['people','marriages','checks'].forEach(n => $('tab-'+n).classList.toggle('hidden', n!==t.dataset.tab));
+  ['people','marriages','checks','activity'].forEach(n => $('tab-'+n).classList.toggle('hidden', n!==t.dataset.tab));
 });
 
 // ---------- render ----------
@@ -421,10 +499,19 @@ function renderChecks(){
   $('checkList').innerHTML = c.length ? c.map(x => `<div class="check ${x.lvl}">${x.lvl==='bad'?'⛔':'⚠️'} ${esc(x.msg)}</div>`).join('')
     : '<div class="check ok">🎉 All good — no problems found.</div>';
 }
-$('recalc').onclick = () => {
+$('recalc').onclick = async () => {
+  const before = Object.fromEntries(db.people.map(p => [p.FID, p.Generation]));
+  const saved = db.people; db.people = saved.map(p => ({ ...p }));
   for(let i=0;i<12;i++) db.people.forEach(p => { const g = deriveGen(p); if(g!=='') p.Generation = String(g); });
-  save(); toast('Generations recalculated');
+  const changed = db.people.filter(p => String(before[p.FID]) !== String(p.Generation));
+  db.people = saved;
+  if(!changed.length){ toast('Generations already correct'); return; }
+  try{ await store.bulk(changed, [], 'recalc generations'); toast(`Updated ${changed.length} generation(s)`); }catch(e){ fail(e); }
 };
+// spouses with blank generation take their partner's generation
+function spouseGenFixes(){
+  return db.people.filter(p => p.Type==='S' && !p.Generation).map(p => { const g = deriveGen(p); return g==='' ? null : { ...p, Generation: String(g) }; }).filter(Boolean);
+}
 
 // ---------- person form ----------
 let editP = null, pType = 'F';
@@ -440,7 +527,7 @@ function setType(t){
   $('pParentHint').classList.toggle('hidden', t==='S');
   $('pHead').className = 'modal-head ' + (t==='F'?'blood':'spouse');
   $('pSave').className = 'btn ' + (t==='F'?'primary':'orange');
-  if(!editP) $('pFID').value = nextId(t, db.people, 'FID');
+  if(!editP) $('pFID').value = mode==='online' ? 'auto on save' : nextId(t, db.people, 'FID');
   $('pGenHint').textContent = t==='F' ? 'Auto: parent + 1 (founder = 1)' : 'Auto: same as partner';
   $('pTitle').textContent = (editP?'Edit ':'Add ') + (t==='F'?'family member':'spouse');
 }
@@ -464,6 +551,7 @@ function openPerson(type, p){
   $('pOrder').value = p?.BirthOrder || ''; $('pGen').value = p?.Generation || '';
   $('pBirth').value = p?.BirthYear || ''; $('pDeath').value = p?.DeathYear || '';
   $('pStatus').value = p?.Status || 'Living'; $('pNotes').value = p?.Notes || '';
+  $('pEdited').textContent = p?.UpdatedBy ? `Last edited by ${p.UpdatedBy} · ${String(p.UpdatedAt||'').slice(0,16).replace('T',' ')} UTC` : '';
   setType(p ? p.Type : type);
   $('pStatus').onchange();
   if(!p) autoGen();
@@ -471,21 +559,25 @@ function openPerson(type, p){
 }
 $('addBlood').onclick = () => openPerson('F');
 $('addSpouse').onclick = () => openPerson('S');
-$('pSave').onclick = () => {
+$('pSave').onclick = async () => {
   const name = $('pName').value.trim();
   if(!name){ toast('Please enter a name'); $('pName').focus(); return; }
   const b = $('pBirth').value, d = $('pDeath').value;
   if(b && d && +d < +b){ toast('Death year is before birth year'); return; }
   const rec = {
-    FID: $('pFID').value, Name: name, AlsoKnownAs: $('pAlt').value.trim(), Gender: $('pGender').value, Type: pType,
+    FID: editP ? editP.FID : '', Name: name, AlsoKnownAs: $('pAlt').value.trim(), Gender: $('pGender').value, Type: pType,
     Generation: $('pGen').value, FatherFID: pType==='F'?$('pFather').value:'', MotherFID: pType==='F'?$('pMother').value:'',
     Relation: pType==='F'?$('pRel').value:'', BirthOrder: pType==='F'?$('pOrder').value:'',
     BirthYear: b, DeathYear: $('pStatus').value==='Living' ? '' : d, Status: $('pStatus').value, Notes: $('pNotes').value.trim()
   };
-  if(rec.Type==='S' && !rec.Generation){ const g = deriveGen(rec); if(g!=='') rec.Generation = String(g); }
-  if(editP) Object.assign(editP, rec); else db.people.push(rec);
-  close('mPerson'); save(); toast((editP?'Updated ':'Added ') + rec.FID);
-  if(!editP && rec.Type==='S') setTimeout(() => toast('Tip: link this spouse in the Marriages tab'), 2300);
+  if(rec.Type==='S' && !rec.Generation && rec.FID){ const g = deriveGen(rec); if(g!=='') rec.Generation = String(g); }
+  const wasEdit = !!editP, btn = $('pSave'); btn.disabled = true;
+  try{
+    const r = await store.person(rec, editP?.UpdatedAt);
+    close('mPerson'); toast((wasEdit?'Updated ':'Added ') + (r.id || rec.FID));
+    if(!wasEdit && rec.Type==='S') setTimeout(() => toast('Tip: link this spouse in the Marriages tab'), 2300);
+  }catch(e){ fail(e); if(/changed by/.test(e.message)) close('mPerson'); }
+  finally{ btn.disabled = false; }
 };
 
 // ---------- marriage form ----------
@@ -495,29 +587,33 @@ function openMarr(m){
   editM = m || null;
   const opts = db.people.slice().sort((a,b)=>a.FID.localeCompare(b.FID)).map(p => `<option value="${esc(p.FID)}">${esc(p.FID)} · ${esc(p.Name)}</option>`).join('');
   $('mA').innerHTML = '<option value="">— choose —</option>' + opts; $('mB').innerHTML = '<option value="">— choose —</option>' + opts;
-  $('mMID').value = m?.MID || nextId('M', db.marriages, 'MID');
+  $('mMID').value = m?.MID || (mode==='online' ? 'auto on save' : nextId('M', db.marriages, 'MID'));
   $('mA').value = m?.PersonA || ''; $('mB').value = m?.PersonB || '';
   $('mOrd').value = m?.MarriageNo || ''; $('mYear').value = m?.YearMarried || '';
   $('mEnd').value = m?.EndType || 'Ongoing'; $('mEndYear').value = m?.YearEnded || '';
   $('mConc').value = m?.Concurrent || 'N'; $('mNotes').value = m?.Notes || '';
+  $('mEdited').textContent = m?.UpdatedBy ? `Last edited by ${m.UpdatedBy} · ${String(m.UpdatedAt||'').slice(0,16).replace('T',' ')} UTC` : '';
   $('mTitle').textContent = m ? 'Edit marriage' : 'Add marriage';
   $('mEnd').onchange(); open('mMarr');
 }
 $('mEnd').onchange = () => $('mEndBox').classList.toggle('hidden', $('mEnd').value==='Ongoing');
 $('mA').onchange = () => { if(!editM && $('mA').value) $('mOrd').value = db.marriages.filter(m => m.PersonA===$('mA').value || m.PersonB===$('mA').value).length + 1; };
 $('addMarr').onclick = () => openMarr();
-$('mSave').onclick = () => {
+$('mSave').onclick = async () => {
   const a = $('mA').value, b = $('mB').value;
   if(!a || !b){ toast('Choose both people'); return; }
   if(a===b){ toast('Pick two different people'); return; }
   const y = $('mYear').value, e = $('mEnd').value==='Ongoing' ? '' : $('mEndYear').value;
   if(y && e && +e < +y){ toast('End year is before marriage year'); return; }
-  const rec = { MID: $('mMID').value, PersonA: a, PersonB: b, MarriageNo: $('mOrd').value, YearMarried: y, YearEnded: e,
+  const rec = { MID: editM ? editM.MID : '', PersonA: a, PersonB: b, MarriageNo: $('mOrd').value, YearMarried: y, YearEnded: e,
     EndType: $('mEnd').value, Concurrent: $('mConc').value, Notes: $('mNotes').value.trim() };
-  if(editM) Object.assign(editM, rec); else db.marriages.push(rec);
-  // spouse generation follows partner
-  [a,b].map(byId).forEach(p => { if(p && p.Type==='S' && !p.Generation){ const g = deriveGen(p); if(g!=='') p.Generation = String(g); } });
-  close('mMarr'); save(); toast((editM?'Updated ':'Added ') + rec.MID);
+  const wasEdit = !!editM, btn = $('mSave'); btn.disabled = true;
+  try{
+    const r = await store.marriage(rec, editM?.UpdatedAt);
+    close('mMarr'); toast((wasEdit?'Updated ':'Added ') + (r.id || rec.MID));
+    const fixes = spouseGenFixes(); if(fixes.length) await store.bulk(fixes, [], 'spouse generation');
+  }catch(err){ fail(err); if(/changed by/.test(err.message)) close('mMarr'); }
+  finally{ btn.disabled = false; }
 };
 
 // ---------- delete ----------
@@ -544,17 +640,12 @@ document.addEventListener('click', e => {
     confirmDel(`<p>Delete <b>${esc(fid)} · ${esc(p.Name)}</b>?</p>` +
       (kids.length ? `<p>⚠️ ${kids.length} child record(s) will lose this parent link (set to 0-0).</p>` : '') +
       (marr.length ? `<p>⚠️ ${marr.length} marriage record(s) will also be deleted.</p>` : '') + '<p class="hint">Tip: export CSVs first as a backup.</p>',
-      () => {
-        db.people = db.people.filter(x => x.FID !== fid);
-        kids.forEach(k => { if(k.FatherFID===fid) k.FatherFID=''; if(k.MotherFID===fid) k.MotherFID=''; });
-        db.marriages = db.marriages.filter(m => !marr.includes(m));
-        save(); toast('Deleted ' + fid);
-      });
+      () => store.delPerson(fid).then(() => toast('Deleted ' + fid)).catch(fail));
   }
   if(t.dataset.delM){
     const mid = t.dataset.delM, m = db.marriages.find(x => x.MID===mid);
     confirmDel(`<p>Delete marriage <b>${esc(mid)}</b> between ${esc(nameOf(m.PersonA))} and ${esc(nameOf(m.PersonB))}?</p>`,
-      () => { db.marriages = db.marriages.filter(x => x.MID !== mid); save(); toast('Deleted ' + mid); });
+      () => store.delMarriage(mid).then(() => toast('Deleted ' + mid)).catch(fail));
   }
 });
 
@@ -609,23 +700,79 @@ function parseCSV(text){
 }
 $('btnImport').onclick = () => $('fileImport').click();
 $('fileImport').onchange = async e => {
-  let msgs = [];
+  const msgs = [], people = [], marriages = [];
   for(const f of e.target.files){
     const text = await f.text();
     if(f.name.toLowerCase().endsWith('.json')){
-      try{ const d = JSON.parse(text); db.people = d.people||[]; db.marriages = d.marriages||[]; msgs.push('JSON loaded'); }catch(err){ msgs.push(f.name+': invalid JSON'); }
+      try{ const d = JSON.parse(text); people.push(...(d.people||[])); marriages.push(...(d.marriages||[])); msgs.push('JSON'); }catch(err){ msgs.push(f.name+': invalid JSON'); }
       continue;
     }
     const { head, data } = parseCSV(text);
-    const merge = (list, key, rows) => rows.forEach(r => { const i = list.findIndex(x => x[key]===r[key]); i>=0 ? Object.assign(list[i], r) : list.push(r); });
-    if(head.includes('FID')){ data.forEach(r => { if(!r.Type) r.Type = (r.FID||'')[0]==='S' ? 'S' : 'F'; }); merge(db.people, 'FID', data); msgs.push(`${data.length} people`); }
-    else if(head.includes('MID')){ merge(db.marriages, 'MID', data); msgs.push(`${data.length} marriages`); }
+    if(head.includes('FID')){ data.forEach(r => { r.Type = (r.FID||'')[0]==='S' ? 'S' : 'F'; }); people.push(...data); msgs.push(`${data.length} people`); }
+    else if(head.includes('MID')){ marriages.push(...data); msgs.push(`${data.length} marriages`); }
     else msgs.push(f.name + ': unknown columns');
   }
-  e.target.value = ''; save(); toast('Imported: ' + msgs.join(', '));
+  e.target.value = '';
+  if(!people.length && !marriages.length){ toast('Nothing to import: ' + msgs.join(', ')); return; }
+  const clean = r => { const o = { ...r }; delete o.UpdatedBy; delete o.UpdatedAt; return o; };
+  try{ await store.bulk(people.map(clean), marriages.map(clean), 'import'); toast('Imported: ' + msgs.join(', ')); }catch(err){ fail(err); }
 };
 
-load(); render();
+// ---------- online mode ----------
+function showPin(msg){
+  $('pinErr').textContent = msg || ''; $('pinName').value = EDITOR || ls.get('ftm-editor') || '';
+  open('mPin'); setTimeout(() => ($('pinName').value ? $('pinVal') : $('pinName')).focus(), 50);
+}
+$('pinGo').onclick = async () => {
+  const name = $('pinName').value.trim(), pin = $('pinVal').value;
+  if(!name){ $('pinErr').textContent = 'Please enter your name'; return; }
+  if(!pin){ $('pinErr').textContent = 'Please enter the PIN'; return; }
+  EDITOR = name; PIN = pin;
+  try{
+    await apiCall('GET', '/api/data');
+    ls.set('ftm-editor', name); ls.set('ftm-pin', pin); $('pinVal').value = '';
+    close('mPin'); toast('Welcome, ' + name + ' 👋');
+  }catch(err){ $('pinErr').textContent = err.message; }
+};
+$('pinVal').addEventListener('keydown', e => { if(e.key==='Enter') $('pinGo').click(); });
+$('btnLock').onclick = () => { ls.del('ftm-pin'); PIN = ''; db = { people: [], marriages: [] }; render(); setSync('off', '● Locked'); showPin('Locked. Enter the PIN to open again.'); };
+
+async function loadLog(){
+  try{
+    const j = await apiCall('GET', '/api/log');
+    $('tLog').innerHTML = '<tr><th>When (UTC)</th><th>Who</th><th>What</th><th>Record</th><th>Detail</th></tr>' +
+      (j.log.length ? j.log.map(l => `<tr><td>${esc(String(l.at).slice(0,16).replace('T',' '))}</td><td><b>${esc(l.editor)}</b></td><td>${esc(l.action)}</td><td>${esc(l.record)}</td><td>${esc(l.detail)}</td></tr>`).join('')
+        : '<tr><td colspan="5" class="empty">No activity yet.</td></tr>');
+  }catch(err){ fail(err); }
+}
+$('refreshLog').onclick = loadLog;
+$('tabActivity').addEventListener('click', loadLog);
+
+async function init(){
+  let online = false;
+  if(location.protocol.startsWith('http')){
+    try{
+      const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 4000);
+      const r = await fetch('/api/ping', { signal: ctl.signal, cache: 'no-store' }); clearTimeout(t);
+      const j = r.ok ? await r.json() : null;
+      online = !!(j && j.ftm === 'online');
+    }catch(e){}
+  }
+  if(!online){ load(); render(); return; }
+  mode = 'online';
+  $('btnLock').classList.remove('hidden'); $('tabActivity').classList.remove('hidden');
+  $('foot').textContent = 'FTM v1.1 · Shared mode: changes are saved online for everyone with the family PIN. Export CSVs now and then as a backup.';
+  render();
+  PIN = ls.get('ftm-pin') || ''; EDITOR = ls.get('ftm-editor') || '';
+  if(PIN && EDITOR){ apiCall('GET', '/api/data').catch(fail); } else showPin();
+  // pick up other editors' changes
+  setInterval(() => {
+    if(PIN && document.visibilityState==='visible' && !document.querySelector('.modal-bg.open')) apiCall('GET', '/api/data').catch(() => {});
+  }, 30000);
+  document.addEventListener('visibilitychange', () => { if(PIN && document.visibilityState==='visible' && !document.querySelector('.modal-bg.open')) apiCall('GET', '/api/data').catch(() => {}); });
+}
+
+init();
 })();
 </script>
 </body>

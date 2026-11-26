@@ -1,0 +1,3 @@
+CREATE TABLE IF NOT EXISTS people (FID TEXT PRIMARY KEY, Name TEXT NOT NULL, AlsoKnownAs TEXT, Gender TEXT, Type TEXT NOT NULL, Generation TEXT, FatherFID TEXT, MotherFID TEXT, Relation TEXT, BirthOrder TEXT, BirthYear TEXT, DeathYear TEXT, Status TEXT, Notes TEXT, UpdatedBy TEXT, UpdatedAt TEXT);
+CREATE TABLE IF NOT EXISTS marriages (MID TEXT PRIMARY KEY, PersonA TEXT NOT NULL, PersonB TEXT NOT NULL, MarriageNo TEXT, YearMarried TEXT, YearEnded TEXT, EndType TEXT, Concurrent TEXT, Notes TEXT, UpdatedBy TEXT, UpdatedAt TEXT);
+CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT, editor TEXT, action TEXT, record TEXT, detail TEXT);

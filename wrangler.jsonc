@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ftm-rec",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ftm-rec",
+      "database_id": "95b0491d-73d5-43b8-b6ff-6ee780c870c6"
+    }
+  ]
+  // Secret (set in Cloudflare dashboard → Worker → Settings → Variables and Secrets):
+  //   FTM_PIN = the family PIN shared with your 2–3 editors
+}
